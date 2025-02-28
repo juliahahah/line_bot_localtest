@@ -110,15 +110,62 @@ def handle_message(event):
     """處理接收到的文字訊息"""
     logger.info(f"處理消息事件: {event.message.text}")
     
-    # 回覆相同的訊息
+    # 嘗試直接通過API call獲取用戶資料
     try:
+        user_id = event.source.user_id
+        logger.info(f"用戶 ID: {user_id}")
+        
+        # 使用更直接的方式呼叫LINE API
+        try:
+            # 構建API請求URL
+            profile_url = f'https://api.line.me/v2/bot/profile/{user_id}'
+            headers = {
+                'Authorization': f'Bearer {CHANNEL_ACCESS_TOKEN}'
+            }
+            
+            # 使用Python標準庫進行HTTP請求
+            import urllib.request
+            req = urllib.request.Request(profile_url, headers=headers)
+            
+            logger.info(f"發送請求獲取用戶資料: {profile_url}")
+            with urllib.request.urlopen(req) as response:
+                profile_json = json.loads(response.read().decode('utf-8'))
+            
+            logger.info(f"獲取到用戶資料: {profile_json}")
+            user_name = profile_json.get('displayName', '朋友')
+            logger.info(f"用戶名稱: {user_name}")
+            
+            # 回覆訊息加上用戶的名字
+            reply_text = f"{user_name} {event.message.text}"
+            logger.info(f"準備回覆訊息: {reply_text}")
+            
+        except Exception as api_err:
+            logger.error(f"直接API調用失敗: {api_err}")
+            # 無法獲取用戶名稱，使用預設稱呼
+            user_name = '朋友'
+            reply_text = f"{user_name} {event.message.text}"
+            logger.info("使用預設稱呼")
+        
+        # 發送回覆
         line_bot_api.reply_message(
             event.reply_token,
-            TextSendMessage(text=event.message.text)
+            TextSendMessage(text=reply_text)
         )
         logger.info("訊息回覆成功發送")
+        
     except Exception as e:
-        logger.error(f"發送回覆訊息時出錯: {str(e)}")
+        logger.error(f"處理訊息時出錯: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        
+        # 如果出現任何錯誤，至少嘗試回覆原始訊息
+        try:
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text=event.message.text)
+            )
+        except Exception as sub_e:
+            logger.error(f"嘗試直接回覆訊息時出錯: {str(sub_e)}")
 
 def calculate_signature(channel_secret, body):
     """從頻道密鑰和請求主體計算 LINE 簽名。"""
