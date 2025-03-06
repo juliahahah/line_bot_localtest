@@ -14,10 +14,23 @@ except ImportError:
     print("dotenv module not found. Environment variables must be set manually.")
     pass  # 在 Lambda 環境中無需 dotenv
 
-from linebot import LineBotApi, WebhookHandler
-from linebot.exceptions import InvalidSignatureError, LineBotApiError
-from linebot.models import MessageEvent, TextMessage, TextSendMessage
-
+from linebot.v3 import (
+    WebhookHandler
+)
+from linebot.v3.exceptions import (
+    InvalidSignatureError
+)
+from linebot.v3.messaging import (
+    Configuration,
+    ApiClient,
+    MessagingApi,
+    ReplyMessageRequest,
+    TextMessage
+)
+from linebot.v3.webhooks import (
+    MessageEvent,
+    TextMessageContent
+)
 # Set up logging
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -33,7 +46,9 @@ if not CHANNEL_SECRET:
     print("警告: CHANNEL_SECRET 環境變數未設置")
 
 # 初始化 LINE Bot API
-line_bot_api = LineBotApi(CHANNEL_ACCESS_TOKEN)
+configuration = Configuration(access_token=CHANNEL_ACCESS_TOKEN)
+api_client = ApiClient(configuration)
+line_bot_api = MessagingApi(api_client)
 handler = WebhookHandler(CHANNEL_SECRET)
 
 def lambda_handler(event, context):
@@ -105,17 +120,15 @@ def lambda_handler(event, context):
             'body': json.dumps({'error': str(e)})
         }
 
-@handler.add(MessageEvent, message=TextMessage)
+@handler.add(MessageEvent, message=TextMessageContent)
 def handle_message(event):
     """處理接收到的文字訊息"""
     logger.info(f"處理消息事件: {event.message.text}")
     
-    # 嘗試直接通過API call獲取用戶資料
     try:
         user_id = event.source.user_id
         logger.info(f"用戶 ID: {user_id}")
         
-        # 使用更直接的方式呼叫LINE API
         try:
             # 構建API請求URL
             profile_url = f'https://api.line.me/v2/bot/profile/{user_id}'
@@ -135,21 +148,22 @@ def handle_message(event):
             user_name = profile_json.get('displayName', '朋友')
             logger.info(f"用戶名稱: {user_name}")
             
-            # 回覆訊息加上用戶的名字
-            reply_text = f"{user_name} {event.message.text}"
+            # 修改回覆文本格式
+            reply_text = f"{user_name} ({user_id}) 呀哈~等等唷!我在幫你分析, {event.message.text}"
             logger.info(f"準備回覆訊息: {reply_text}")
             
         except Exception as api_err:
             logger.error(f"直接API調用失敗: {api_err}")
-            # 無法獲取用戶名稱，使用預設稱呼
             user_name = '朋友'
-            reply_text = f"{user_name} {event.message.text}"
+            reply_text = f"{user_name} ({user_id}) 呀哈~等等唷!我在幫你分析, {event.message.text}"
             logger.info("使用預設稱呼")
         
         # 發送回覆
         line_bot_api.reply_message(
-            event.reply_token,
-            TextSendMessage(text=reply_text)
+            ReplyMessageRequest(
+                reply_token=event.reply_token,
+                messages=[TextMessage(text=reply_text)]
+            )
         )
         logger.info("訊息回覆成功發送")
         
@@ -158,11 +172,16 @@ def handle_message(event):
         import traceback
         logger.error(traceback.format_exc())
         
-        # 如果出現任何錯誤，至少嘗試回覆原始訊息
         try:
+            # fallback using default values if variables are missing
+            fallback_name = locals().get('user_name', '朋友')
+            fallback_id = locals().get('user_id', '未知ID')
+            fallback_text = f"{fallback_name} ({fallback_id}) 呀哈~等等唷!我在幫你分析, {event.message.text}"
             line_bot_api.reply_message(
-                event.reply_token,
-                TextSendMessage(text=event.message.text)
+                ReplyMessageRequest(
+                    reply_token=event.reply_token,
+                    messages=[TextMessage(text=fallback_text)]
+                )
             )
         except Exception as sub_e:
             logger.error(f"嘗試直接回覆訊息時出錯: {str(sub_e)}")
@@ -176,3 +195,4 @@ def calculate_signature(channel_secret, body):
     ).digest()
     signature = base64.b64encode(hash).decode('utf-8')
     return signature
+

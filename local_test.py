@@ -4,8 +4,8 @@ import sys
 from flask import Flask, request, abort
 import logging
 
-# 導入 Lambda 函數
-from lambda_function import handler, line_bot_api, CHANNEL_ACCESS_TOKEN, CHANNEL_SECRET
+# 導入 Lambda 函數 (修改：使用新版 linebot.V3)
+from lambda_function_v3 import handler, line_bot_api, CHANNEL_ACCESS_TOKEN, CHANNEL_SECRET
 
 # 設置日誌
 logging.basicConfig(
@@ -49,8 +49,8 @@ def callback():
         }
     }
     
-    # 調用 Lambda 處理函數
-    response = lambda_handler(lambda_event, None)
+    # 調用新版 Lambda 處理函數 (修改：使用 handler)
+    response = handler(lambda_event, None)
     
     # 處理響應
     status_code = response.get('statusCode', 200)
