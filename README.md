@@ -1,3 +1,6 @@
+# DEMO輸出格式 (user name + "自動回覆訊息"+ 重複使用者輸出的資訊)
+![image](https://github.com/user-attachments/assets/8d62e9fe-2da9-4653-86e4-3399809f9086)
+
 # LINE Bot Lambda Function
 
 這個專案包含一個AWS Lambda函數，用於處理LINE Bot的webhook請求和回覆訊息。
@@ -16,6 +19,7 @@
 - LINE Bot SDK v3
 - boto3 (AWS SDK)
 - dotenv (用於本地開發)
+- 註冊ngrok
 
 ## 安裝指南
 
@@ -87,9 +91,17 @@ python debug_local_test.py
 3. 設定環境變數：
    - CHANNEL_ACCESS_TOKEN
    - CHANNEL_SECRET
+<<<<<<< HEAD
    - AWS_REGION
    - BEDROCK_AGENT_ID
    - BEDROCK_AGENT_ALIAS_ID
+=======
+   - EXAMPLE
+      # LINE 頻道訪問令牌
+      CHANNEL_ACCESS_TOKEN = 'tmVirv6mNOrSUzdrIrrvJ61yErkjEbHbUsS07hn8WCwUkvpGIY7V9cHSESfhv95hYREcrlwifXJ/Yn4Dwi0LaTe7l45CKvSgfX1jFVfd11q70Sou47nMG+QKQUiNwWRkQge6ImvrHet2Cph5+ocCOwdB04t89/1O/w1cDnyilFU='
+      # LINE 頻道密鑰
+      CHANNEL_SECRET = 'd94056599e0bc1a71f3b006b4dd7bd58'
+>>>>>>> 95f81bc657c05ae848d217a027f306aeaac6ff59
 
 4. 確保Lambda函數有訪問AWS Bedrock的權限。
 
