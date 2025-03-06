@@ -7,6 +7,9 @@
 
 這個專案包含一個AWS Lambda函數，用於處理LINE Bot的webhook請求和回覆訊息。
 
+以下是詳細在aws環境上面部屬的過程(但以下為手動部屬)
+https://www.canva.com/design/DAGgWykbVUY/lLJM3b51hTyQ1ze610Raiw/edit
+
 ## 功能特點
 
 - 接收並處理來自LINE平台的webhook事件
