@@ -1,3 +1,6 @@
+# 輸出格式 (user name + "自動回覆訊息"+ 重複使用者輸出的資訊)
+![image](https://github.com/user-attachments/assets/8d62e9fe-2da9-4653-86e4-3399809f9086)
+
 # LINE Bot Lambda Function
 
 這個專案包含一個AWS Lambda函數，用於處理LINE Bot的webhook請求和回覆訊息。
