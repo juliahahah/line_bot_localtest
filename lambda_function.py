@@ -4,6 +4,7 @@ import logging
 import hmac
 import hashlib
 import base64
+import boto3
 
 # 嘗試導入 dotenv 以便本地開發時讀取 .env 文件
 try:
@@ -38,18 +39,35 @@ logger.setLevel(logging.INFO)
 # 從環境變數中獲取認證信息，而不是硬編碼
 CHANNEL_ACCESS_TOKEN = os.environ.get('CHANNEL_ACCESS_TOKEN')
 CHANNEL_SECRET = os.environ.get('CHANNEL_SECRET')
+# AWS Bedrock 設定
+AWS_REGION = os.environ.get('AWS_REGION', 'us-east-1')
+BEDROCK_AGENT_ID = os.environ.get('BEDROCK_AGENT_ID')
+BEDROCK_AGENT_ALIAS_ID = os.environ.get('BEDROCK_AGENT_ALIAS_ID', 'TSTALIASID')
 
 # 檢查環境變數是否已設置
 if not CHANNEL_ACCESS_TOKEN:
     print("警告: CHANNEL_ACCESS_TOKEN 環境變數未設置")
 if not CHANNEL_SECRET:
     print("警告: CHANNEL_SECRET 環境變數未設置")
+if not BEDROCK_AGENT_ID:
+    print("警告: BEDROCK_AGENT_ID 環境變數未設置")
 
 # 初始化 LINE Bot API
 configuration = Configuration(access_token=CHANNEL_ACCESS_TOKEN)
 api_client = ApiClient(configuration)
 line_bot_api = MessagingApi(api_client)
 handler = WebhookHandler(CHANNEL_SECRET)
+
+# 初始化 AWS Bedrock client
+try:
+    bedrock_agent_runtime = boto3.client(
+        service_name='bedrock-agent-runtime',
+        region_name=AWS_REGION
+    )
+    print(f"成功初始化 AWS Bedrock Agent Runtime")
+except Exception as e:
+    print(f"初始化 AWS Bedrock 時出錯: {str(e)}")
+    bedrock_agent_runtime = None
 
 def lambda_handler(event, context):
     """AWS Lambda function handler."""
@@ -149,23 +167,30 @@ def handle_message(event):
             logger.info(f"用戶名稱: {user_name}")
             
             # 修改回覆文本格式
-            reply_text = f"{user_name} ({user_id}) 呀哈~等等唷!我在幫你分析, {event.message.text}"
-            logger.info(f"準備回覆訊息: {reply_text}")
+            initial_reply_text = f"{user_name} ({user_id}) 呀哈~等等唷!我在幫你分析, {event.message.text}"
+            logger.info(f"準備初始回覆訊息: {initial_reply_text}")
             
         except Exception as api_err:
             logger.error(f"直接API調用失敗: {api_err}")
             user_name = '朋友'
-            reply_text = f"{user_name} ({user_id}) 呀哈~等等唷!我在幫你分析, {event.message.text}"
+            initial_reply_text = f"{user_name} ({user_id}) 呀哈~等等唷!我在幫你分析, {event.message.text}"
             logger.info("使用預設稱呼")
         
-        # 發送回覆
+        # 發送初始回覆
         line_bot_api.reply_message(
             ReplyMessageRequest(
                 reply_token=event.reply_token,
-                messages=[TextMessage(text=reply_text)]
+                messages=[TextMessage(text=initial_reply_text)]
             )
         )
-        logger.info("訊息回覆成功發送")
+        logger.info("初始訊息回覆成功發送")
+        
+        # 呼叫 AWS Bedrock Agent 取得分析回覆
+        ai_reply = get_bedrock_agent_response(event.message.text, user_id)
+        
+        # 使用 push message 發送 AI 回覆 (因為 reply_token 只能用一次)
+        send_push_message(user_id, ai_reply)
+        logger.info("AI 分析回覆成功發送")
         
     except Exception as e:
         logger.error(f"處理訊息時出錯: {str(e)}")
@@ -185,6 +210,54 @@ def handle_message(event):
             )
         except Exception as sub_e:
             logger.error(f"嘗試直接回覆訊息時出錯: {str(sub_e)}")
+
+def get_bedrock_agent_response(user_message, user_id):
+    """呼叫 AWS Bedrock Agent 獲取回覆"""
+    try:
+        if not bedrock_agent_runtime or not BEDROCK_AGENT_ID:
+            return "目前無法使用 AI 分析功能，請稍後再試。"
+        
+        logger.info(f"呼叫 AWS Bedrock Agent，使用者訊息: {user_message}")
+        
+        response = bedrock_agent_runtime.invoke_agent(
+            agentId=BEDROCK_AGENT_ID,
+            agentAliasId=BEDROCK_AGENT_ALIAS_ID,
+            sessionId=f"line-session-{user_id}",
+            inputText=user_message
+        )
+        
+        # 解析回覆
+        completion = ""
+        for event in response.get('completion', []):
+            chunk = event.get('chunk', {})
+            if 'bytes' in chunk:
+                completion += chunk['bytes'].decode('utf-8')
+        
+        if not completion:
+            completion = "很抱歉，我無法理解您的問題。請再試一次。"
+            
+        logger.info(f"從 Bedrock Agent 獲得的回覆: {completion}")
+        return completion
+        
+    except Exception as e:
+        logger.error(f"呼叫 AWS Bedrock 時出錯: {str(e)}")
+        return f"分析過程中發生錯誤，請稍後再試。錯誤: {str(e)[:100]}..."
+
+def send_push_message(user_id, message):
+    """發送推送訊息給用戶"""
+    try:
+        from linebot.v3.messaging import PushMessageRequest
+        
+        line_bot_api.push_message(
+            PushMessageRequest(
+                to=user_id,
+                messages=[TextMessage(text=message)]
+            )
+        )
+        return True
+    except Exception as e:
+        logger.error(f"發送推送訊息時出錯: {str(e)}")
+        return False
 
 def calculate_signature(channel_secret, body):
     """從頻道密鑰和請求主體計算 LINE 簽名。"""
