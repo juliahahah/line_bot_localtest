@@ -1,5 +1,7 @@
 # DEMO輸出格式 (user name + "自動回覆訊息"+ 重複使用者輸出的資訊)
-![image](https://github.com/user-attachments/assets/8d62e9fe-2da9-4653-86e4-3399809f9086)
+
+![image](https://github.com/user-attachments/assets/78cfdd02-c0e5-49c5-be8c-55f6d8ef89db)
+
 
 # LINE Bot Lambda Function
 
