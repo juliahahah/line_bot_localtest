@@ -2,32 +2,6 @@
 
 這是一個由 AWS 支援的 LINE 聊天機器人應用程式，回應使用者訊息時會包含自定義格式，包括使用者名稱和使用者 ID。
 
-## 設置與部署說明
-
-### CloudFormation 部署指南
-
-我們將使用 CloudFormation 來佈建本次工作坊所需的資源。
-
-首先在 **Infrastructure Composer** 中建立模板，該模板將存儲在 S3 儲存桶中。然後，繼續前往 **Create stack** 部分完成剩餘步驟。
-
-#### Infrastructure Composer 步驟
-
-前往 "Infrastructure Composer" 頁面，然後：
-
-1. 切換到 "Template" 視圖
-2. 貼上 YAML 檔案的內容 (`template.yaml`)
-3. 點擊 "Validate" 驗證一切正常
-4. 然後，點擊 "Create Template"
-5. 系統會自動生成 S3 儲存桶 URL，彈出窗口將幫助引導至 "Create Stack" 部分
-
-#### Stacks 步驟
-
-1. 建立堆疊：預設應選擇 "**Build from Infrastructure Composer**"，且 "**S3 URL**" 會自動填入
-2. 指定堆疊詳細信息：提供堆疊名稱和模板中定義的參數
-3. 配置堆疊選項：保持預設選項不變
-4. 審核並建立：確認所有內容符合要求
-
-審核後，點擊 "Submit" 並等待 3-5 分鐘完成資源建立。
 
 ### 準備部署套件
 
